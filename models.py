@@ -10,9 +10,10 @@ class Department(db.Model):
   
 class Employee(db.Model):
   __tablename__ = "employee"
-  employee_id = db.Column(db.Integer, primary_key=True)
+  employee_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
   employee_name = db.Column(db.String(45), nullable=False)
   employee_role = db.Column(db.String(45), nullable=False)
   employee_information = db.Column(db.String(200), nullable=True)
   department_id = db.Column(db.Integer, db.ForeignKey('department.department_id'), nullable=False)
+  
   department = db.relationship('Department', backref=db.backref('employees', lazy=True))

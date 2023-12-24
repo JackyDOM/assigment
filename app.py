@@ -1,5 +1,5 @@
 from flask import Flask
-from flask_restx import Api, Resource, fields, reqparse
+from flask_restx import Api, Resource, fields, reqparse, abort
 from config import Config
 from sqlalchemy import exc
 from models import db, Department, Employee
@@ -13,7 +13,7 @@ with app.app_context():
     db.init_app(app)
     db.create_all()
 
-api = Api(app, version='1.0', title='Employee Directory', description='API manages employees')
+api = Api(app, version='1.0', title='Employee Directory System', description='API manages employees')
 api_ns = api.namespace("Reference", path='/apiv1', description='Reference Data')
 
 # Define a data model for output marshalling
@@ -55,7 +55,7 @@ class AllDepartmentsResource(Resource):
         return [{'department_id': department.department_id, 'department_name': department.department_name} for department in departments]
 
 # Endpoint for retrieving all employees
-@api_ns.route('/employees')
+@api.route('/employees')
 class AllEmployeesResource(Resource):
     @api.marshal_with(employee_fields)
     def get(self):
@@ -76,8 +76,8 @@ class AllEmployeesResource(Resource):
             for employee in employees
         ]
         
-    @api_ns.expect(put_employee_parser)
-    @api_ns.marshal_with(employee_fields, code=201)
+    @api.expect(put_employee_parser)
+    @api.marshal_with(employee_fields, code=201)
     def post(self):
         args = put_employee_parser.parse_args()
         employee_id = args['employee_id']
@@ -131,31 +131,36 @@ class AllEmployeesResource(Resource):
         
 
 
-@api_ns.route('/employee/<int:id>')
+@api.route('/employees/<int:id>')
 class GetEmployee(Resource):
-    @api_ns.marshal_with(employee_fields)
+    @api.marshal_with(employee_fields)
     def get(self, id):
         employee = db.session.query(Employee).filter_by(employee_id=id).first()
         if employee:
             return employee
-        return {'message': 'Employee not found.'}, 404
+        else:
+            abort(404,  'Employee not found')
+
+
+
     
     @api.expect(put_employee_parser)
-    @api_ns.marshal_with(employee_fields)
+    @api.marshal_with(employee_fields)
     def put(self, id):
         args = put_employee_parser.parse_args()
-        
+
+        # Check if the employee exists
         employee = db.session.query(Employee).filter_by(employee_id=id).first()
         if employee:
             employee.employee_id = args['employee_id']
             employee.employee_name = args['employee_name']
             employee.employee_role = args['employee_role']
             employee.employee_information = args['employee_information']
-            
+
             # Update the department
             department_id = args['department_id']
             department_name = args['department_name']
-            
+
             department = db.session.query(Department).filter_by(department_id=department_id).first()
             if department:
                 department.department_name = department_name
@@ -167,8 +172,10 @@ class GetEmployee(Resource):
                 return {'message': 'Department not found'}, 404
         else:
             return {'message': 'Employee not found'}, 404
+
         
-    @api_ns.response(204, 'Employee and Department deleted successfully')
+    @api_ns.response(200, 'Employee and Department deleted successfully')
+    @api_ns.response(404, 'Employee not found')
     def delete(self, id):
         employee = db.session.query(Employee).filter_by(employee_id=id).first()
         if employee:
@@ -180,43 +187,9 @@ class GetEmployee(Resource):
             # Delete the employee
             db.session.delete(employee)
             db.session.commit()
-            return '', 204  # No content
+            return {'message': 'Employee and Department deleted successfully'}, 200
         else:
             return {'message': 'Employee not found'}, 404
-        
-    # @api_ns.expect(put_employee_parser)
-    # @api_ns.marshal_with(employee_fields, code=201)
-    # def post(self):
-    #     args = put_employee_parser.parse_args()
-
-    #     # Create a new Employee instance
-    #     new_employee = Employee(
-    #         employee_id=args['employee_id'],
-    #         employee_name=args['employee_name'],
-    #         employee_role=args['employee_role'],
-    #         employee_information=args['employee_information'],
-    #         department_id=args['department_id'],
-    #         department_name=args['department_name']
-    #     )
-
-    #     # Check if the department exists
-    #     department_id = args['department_id']
-    #     department_name = args['department_name']
-    #     existing_department = db.session.query(Department).filter_by(department_id=department_id).first()
-
-    #     if not existing_department:
-    #         # If the department doesn't exist, create a new one
-    #         new_department = Department(
-    #             department_id=department_id,
-    #             department_name=department_name
-    #         )
-    #         db.session.add(new_department)
-    #         new_employee.department = new_department
-
-    #     db.session.add(new_employee)
-    #     db.session.commit()
-
-    #     return new_employee, 201
 
 
 @api.route('/swagger')

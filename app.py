@@ -139,11 +139,8 @@ class GetEmployee(Resource):
         if employee:
             return employee
         else:
-            abort(404,  'Employee not found')
+            abort(404, 'Employee not found')
 
-
-
-    
     @api.expect(put_employee_parser)
     @api.marshal_with(employee_fields)
     def put(self, id):
@@ -169,10 +166,10 @@ class GetEmployee(Resource):
                 db.session.commit()
                 return employee
             else:
-                return {'message': 'Department not found'}, 404
+                abort(404, 'Employee not found')
         else:
-            return {'message': 'Employee not found'}, 404
-
+            # Return a 404 response when the employee is not found
+            abort(404, 'Employee not found')
         
     @api_ns.response(200, 'Employee and Department deleted successfully')
     @api_ns.response(404, 'Employee not found')
